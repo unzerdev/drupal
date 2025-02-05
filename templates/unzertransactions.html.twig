@@ -1,0 +1,83 @@
+{# commerce_unzerpayments/templates/unzertransactions.html.twig #}
+
+{% if unzer_transactions %}
+
+  <p>Short-ID: {{ unzer_transactions.shortID }}</p>
+
+  <table class="table">
+    <tr>
+      <th>
+        {{ 'Total amount'|t }}
+      </th>
+      <td>
+        {{ unzer_transactions.amount }}
+      </td>
+    </tr>
+    <tr>
+      <th>
+        {{ 'Charged amount'|t }}
+      </th>
+      <td>
+        {{ unzer_transactions.charged }}
+      </td>
+    </tr>
+    <tr>
+      <th>
+        {{ 'Cancelled amount'|t }}
+      </th>
+      <td>
+        {{ unzer_transactions.cancelled }}
+      </td>
+    </tr>
+    <tr>
+      <th>
+        {{ 'Remaining amount'|t }}
+      </th>
+      <td>
+        {{ unzer_transactions.remaining }}
+      </td>
+    </tr>
+  </table>
+
+
+  <table class="table">
+    <thead>
+    <tr>
+      <th>
+        {{ 'Time'|t }}
+      </th>
+      <th>
+        {{ 'Type'|t }}
+      </th>
+      <th>
+        {{ 'ID'|t }}
+      </th>
+      <th>
+        {{ 'Amount'|t }}
+      </th>
+      <th>
+        {{ 'Status'|t }}
+      </th>
+    </tr>
+    </thead>
+    {% for unzer_transaction in unzer_transactions.transactions %}
+    <tr>
+      <td>
+        {{ unzer_transaction.time }}
+      </td>
+      <td>
+        {{ unzer_transaction.type }}
+      </td>
+      <td>
+        {{ unzer_transaction.id }}
+      </td>
+      <td>
+        {{ unzer_transaction.amount }}
+      </td>
+      <td>
+        {{ unzer_transaction.status }}
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+{% endif %}

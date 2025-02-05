@@ -1,0 +1,50 @@
+{# commerce_unzerpayments/templates/unzerwebhooks.html.twig #}
+
+{% if webhooksList %}
+  <table class="table">
+    <thead>
+    <tr>
+      <th>
+        {{ 'ID'|t }}
+      </th>
+      <th>
+        {{ 'Event'|t }}
+      </th>
+      <th>
+        {{ 'URL'|t }}
+      </th>
+      <th>
+        &nbsp;
+      </th>
+    </tr>
+    </thead>
+    {% for webhook in webhooksList %}
+    <tr>
+      <td>
+        {{ webhook.getId() }}
+      </td>
+      <td>
+        {{ webhook.getEvent() }}
+      </td>
+      <td>
+        {{ webhook.getUrl() }}
+      </td>
+      <td>
+        <a href="{{ deleteWebhookLink | replace({ 'UNZERWEBHOOKID': webhook.getId() }) }}" class="action-link action-link--icon-trash" onclick="return confirm('{{ 'Do you really want to delete this webhook?'|t }}')">
+          {{ 'delete'|t }}
+        </a>
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+
+
+ {% if webhookCreateActionLink %}
+  <p>
+    <a href="{{ webhookCreateActionLink }}" class="button button--primary" onclick="return confirm('{{ 'Do you really want to register the webhook?'|t }}')">
+      {{ 'Register webhook'|t }}
+    </a>
+  </p>
+  {% endif %}
+
+{% endif %}

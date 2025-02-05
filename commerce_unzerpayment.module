@@ -1,0 +1,397 @@
+<?php
+
+use Drupal\commerce_price\Calculator;
+use Drupal\commerce_unzerpayment\Classes\UnzerPaymentLogger;
+use Drupal\Core\Url;
+
+/**
+ * Implements hook_theme().
+ */
+function commerce_unzerpayment_theme() {
+  $theme = [
+    'unzertransactions' => [
+      'variables' => [
+        'unzer_transactions' => NULL
+      ],
+    ],
+    'unzerwebhooks' => [
+      'variables' => [
+        'webhooksList' => NULL,
+        'webhookCreateActionLink' => NULL,
+        'deleteWebhookLink' => NULL
+      ],
+    ],
+    'commerce_order_receipt' => [
+      'template' => 'commerce_unzerpayment-order-receipt',
+      'base hook' => 'commerce_order_receipt',
+    ]
+  ];
+  return $theme;
+}
+
+function commerce_unzerpayment_preprocess_views_view_field(&$variables) {
+  $view = $variables['view'];
+  $field = $variables['field'];
+  $row = $variables['row'];
+
+  $isUnzerPayments = false;
+  if ($view->storage->id() == 'commerce_order_payments' && $field->field == 'remote_id') {
+    foreach ($view->field as $fieldId => $fieldView) {
+      if ($fieldId === 'payment_gateway') {
+        if (isset($row->index)) {
+          if (str_contains($view->style_plugin->getFieldValue($row->index, $fieldId), 'unzer_')) {
+            $view->row_index = $row->index;
+            $isUnzerPayments = true;
+          }
+        }
+      }
+    }
+    if ($isUnzerPayments) {
+      $payment_storage = \Drupal::entityTypeManager()->getStorage('commerce_payment');
+      $payment_ids = $payment_storage->getQuery()
+        ->condition('remote_id', trim($variables['output']))
+        ->accessCheck(TRUE)
+        ->execute();
+
+      foreach ($payment_ids as $payment_id) {
+        /** @var \Drupal\commerce_payment\Entity\Payment $payment */
+        $payment = $payment_storage->load($payment_id);
+        $transactions = \Drupal\commerce_unzerpayment\Classes\UnzerPaymentHelper::getTransactions(
+          trim($variables['output']),
+          $payment->getOrder()
+        );
+
+        $renderable = [
+          '#theme' => 'unzertransactions',
+          '#unzer_transactions' => $transactions,
+        ];
+        $rendered = \Drupal::service('renderer')->renderPlain($renderable);
+
+        $variables['output'] = \Drupal\Core\Render\Markup::create($variables['output'] . $rendered);
+
+      }
+
+    }
+  }
+}
+
+function commerce_unzerpayment_preprocess_commerce_order_receipt(&$variables) {
+  commerce_payment_preprocess_commerce_order($variables);
+
+  /** @var Drupal\commerce_order\Entity\OrderInterface $order */
+  $order = $variables['order_entity'];
+  /** @var \Drupal\commerce_payment\Entity\PaymentGatewayInterface $payment_gateway */
+  $payment_gateway = $order->get('payment_gateway')->entity;
+  /** @var \Drupal\commerce_payment\Entity\PaymentMethodInterface $payment_method */
+  $payment_method = $order->get('payment_method')->entity;
+  /** @var \Drupal\commerce_payment\Plugin\Commerce\PaymentGateway\HasPaymentInstructionsInterface $payment_gateway_plugin */
+  $payment_gateway_plugin = $payment_gateway->getPlugin();
+  if ($payment_gateway_plugin instanceof \Drupal\commerce_payment\Plugin\Commerce\PaymentGateway\HasPaymentInstructionsInterface) {
+    $payment_storage = \Drupal::entityTypeManager()->getStorage('commerce_payment');
+    $payments = $payment_storage->loadMultipleByOrder($order);
+    $payments = array_filter($payments, function ($payment) use ($payment_gateway) {
+      return $payment->getPaymentGatewayId() == $payment_gateway->id();
+    });
+    $payment = reset($payments);
+    if ($payment) {
+      if (str_contains($payment->getPaymentGateway()->getPluginId(), 'unzer_')) {
+        $variables['unzer_instructions'] = $payment_gateway_plugin->buildPaymentInstructions($payment);
+      }
+    }
+  }
+
+}
+
+/**
+ * Implements hook_form_alter().
+ */
+function commerce_unzerpayment_form_alter(&$form, Drupal\Core\Form\FormState $form_state, $form_id) {
+  if (!empty($form['#step_id']) && $form['#step_id'] == 'review') {
+    $build_info = $form_state->getBuildInfo();
+    /** @var Drupal\commerce_checkout\Plugin\Commerce\CheckoutFlow\MultistepDefault $checkout_flow */
+    $checkout_flow = $build_info['callback_object'];
+    $order = $checkout_flow->getOrder();
+    if (!$order->payment_gateway->isEmpty()) {
+      $payment_gateway_plugin_id = $order->payment_gateway->entity->getPluginId();
+      if (str_contains($payment_gateway_plugin_id, 'unzer_')) {
+
+        $payment_method = $order->get('payment_method')->getEntity();
+
+        $form['#attached']['library'][] = 'commerce_unzerpayment/unzer-payment';
+
+        // create unzer paypage process
+        $config = \Drupal::config('commerce_unzerpayment.basic_settings');
+
+        $unzer = new \UnzerSDK\Unzer($config->get('private_key'));
+
+        $profiles = $order->collectProfiles();
+        if (isset($profiles['shipping']) && !$profiles['shipping']->get('address')->isEmpty()) {
+          /** @var \Drupal\address\AddressInterface $drupalAddress */
+          $drupalAddress = $profiles['shipping']->get('address')->first();
+          $shipping_address = new \UnzerSDK\Resources\EmbeddedResources\Address();
+          $shipping_address->setName($drupalAddress->getGivenName() . ' ' . $drupalAddress->getFamilyName())
+            ->setStreet(substr($drupalAddress->getAddressLine1() . ' ' . $drupalAddress->getAddressLine2(), 0, 60))
+            ->setZip($drupalAddress->getPostalCode())
+            ->setCity($drupalAddress->getLocality())
+            ->setCountry($drupalAddress->getCountryCode());
+        }
+
+        if ($billing_profile = $payment_method->getBillingProfile()) {
+          /** @var \Drupal\address\AddressInterface $drupalAddress */
+          $drupalAddress = $billing_profile->get('address')->first();
+          $billing_address = new \UnzerSDK\Resources\EmbeddedResources\Address();
+          $billing_address->setName($drupalAddress->getGivenName() . ' ' . $drupalAddress->getFamilyName())
+            ->setStreet(substr($drupalAddress->getAddressLine1() . ' ' . $drupalAddress->getAddressLine2(), 0, 60))
+            ->setZip($drupalAddress->getPostalCode())
+            ->setCity($drupalAddress->getLocality())
+            ->setCountry($drupalAddress->getCountryCode());
+        }
+
+        $customerId = $order->getCustomerId() == 0 ? ('DC-Guest-' . $order->id()) : ('DC-' . $order->getCustomerId());
+
+        $need_customer_update = false;
+        try {
+          $customer = $unzer->fetchCustomer($customerId);
+          $need_customer_update = true;
+        } catch (\Exception $e) {
+          $customer = new \UnzerSDK\Resources\Customer();
+        }
+
+        $customer->setFirstname($drupalAddress->getGivenName())
+          ->setLastname($drupalAddress->getFamilyName())
+          ->setCompany($drupalAddress->getOrganization())
+          ->setEmail($order->getEmail())
+          ->setCustomerId($order->getCustomerId() == 0 ? ('DC-Guest-' . $order->id()) : ('DC-' . $order->getCustomerId()));
+
+        if (isset($billing_address)) {
+          $customer->setBillingAddress($billing_address);
+        }
+        if (isset($shipping_address)) {
+          $customer->setShippingAddress($shipping_address);
+        }
+
+        if ($need_customer_update) {
+          $unzer->updateCustomer($customer);
+        } else {
+          $unzer->createCustomer($customer);
+        }
+
+        $line_items = [];
+        $tmpSum = 0;
+        foreach ($order->getItems() as $order_item) {
+          $name = $order_item->label();
+          $name = (strlen($name) > 31) ? substr($name, 0, 28) . '...' : $name;
+
+          $line_items[] = (new \UnzerSDK\Resources\EmbeddedResources\BasketItem())
+            ->setTitle($name)
+            ->setBasketItemReferenceId($order_item->id())
+            ->setQuantity($order_item->getQuantity())
+            ->setUnit('m')
+            ->setAmountPerUnitGross($order_item->getUnitPrice()->getNumber())
+            ->setType(\UnzerSDK\Constants\BasketItemTypes::GOODS);
+          $tmpSum += $order_item->getQuantity() * $order_item->getUnitPrice()->getNumber();
+        }
+
+        if ($order->hasField('shipments')) {
+          $shipment_amount = '0';
+          $shipment_labels = [];
+
+          /** @var \Drupal\commerce_shipping\Entity\ShipmentInterface[] $shipments */
+          $shipments = $order->get('shipments')->referencedEntities();
+          if ($shipments) {
+            foreach ($shipments as $shipment) {
+              // Shipments without an amount are incomplete / unrated.
+              if ($shipment_single_amount = $shipment->getAmount()) {
+                $shipment_amount = Calculator::add($shipment_amount, $shipment_single_amount->getNumber());
+                $shipment_labels[] = $shipment->label();
+              }
+            }
+          }
+
+          // Determine whether multiple shipping types are present.
+          $shipment_labels = array_unique($shipment_labels);
+          if (empty($shipment_labels)) {
+            $shipment_name = '';
+          } elseif (count($shipment_labels) > 1) {
+            $shipment_name = 'Multiple shipments';
+          } else {
+            $shipment_name = $shipment_labels[0];
+          }
+
+          // Limit name, description fields to 32, 255 characters.
+          $shipment_name = (strlen($shipment_name) > 31) ? substr($shipment_name, 0, 28) . '...' : $shipment_name;
+
+          $line_items[] = (new \UnzerSDK\Resources\EmbeddedResources\BasketItem())
+            ->setTitle($shipment_name)
+            ->setBasketItemReferenceId('shipping-item')
+            ->setQuantity(1)
+            ->setUnit('m')
+            ->setAmountPerUnitGross($shipment_amount)
+            ->setType(\UnzerSDK\Constants\BasketItemTypes::SHIPMENT);
+          $tmpSum += (float)$shipment_amount;
+        }
+
+        $difference = $order->getTotalPrice()->getNumber() - $tmpSum;
+        if ($difference > 0) {
+          $basketItem = (new \UnzerSDK\Resources\EmbeddedResources\BasketItem())
+            ->setBasketItemReferenceId('add-shipping-delta')
+            ->setQuantity(1)
+            ->setAmountPerUnitGross($difference)
+            ->setTitle('Shipping')
+            ->setSubTitle('Shipping Delta')
+            ->setType(\UnzerSDK\Constants\BasketItemTypes::SHIPMENT);
+          $line_items[] = $basketItem;
+        } elseif ($difference < 0) {
+          $basketItem = (new \UnzerSDK\Resources\EmbeddedResources\BasketItem())
+            ->setBasketItemReferenceId('VoucherDelta')
+            ->setQuantity(1)
+            ->setAmountDiscountPerUnitGross($difference * -1)
+            ->setTitle('Voucher Delta')
+            ->setType(\UnzerSDK\Constants\BasketItemTypes::VOUCHER);
+          $line_items[] = $basketItem;
+        }
+
+        $basket = (new \UnzerSDK\Resources\Basket())
+          ->setTotalValueGross($order->getTotalPrice()->getNumber())
+          ->setCurrencyCode($order->getTotalPrice()->getCurrencyCode())
+          ->setOrderId($order->getOrderNumber() ?: $order->id());
+
+        foreach ($line_items as $line_item) {
+          $basket->addBasketItem(
+            $line_item
+          );
+        }
+
+        $unzer->createBasket($basket);
+
+        $metadata = new \UnzerSDK\Resources\Metadata();
+        $metadata->addMetadata('pluginType', 'unzerdev/drupalcommerce')
+          ->setShopType('Drupal Commerce')
+        ;
+
+        $commerce_unzerpayment_extension = \Drupal::service('extension.list.module')->get('commerce_unzerpayment');
+        if ($commerce_unzerpayment_extension->info['version']) {
+          $metadata
+            ->addMetadata('pluginVersion', $commerce_unzerpayment_extension->info['version']);
+        }
+
+        $commerce_extension = \Drupal::service('extension.list.module')->get('commerce');
+        if ($commerce_extension->info['version']) {
+          $metadata
+            ->setShopVersion($commerce_extension->info['version']);
+        }
+
+        $unzer->createMetadata($metadata);
+
+        $resources = new \UnzerSDK\Resources\EmbeddedResources\Paypage\Resources(
+          $customer->getId(),
+          $basket->getId(),
+          $metadata->getId()
+        );
+
+        $paymentMethodClass = \Drupal\commerce_unzerpayment\Classes\UnzerPaymentClient::guessPaymentMethodClass($order->payment_gateway->entity->getPluginConfiguration()['unzer_payment_type']);
+        $currentMethodConfig = new \UnzerSDK\Resources\EmbeddedResources\Paypage\PaymentMethodConfig(true, 1);
+        $paymentMethodsConfig = (new \UnzerSDK\Resources\EmbeddedResources\Paypage\PaymentMethodsConfigs())
+          ->setDefault((new \UnzerSDK\Resources\EmbeddedResources\Paypage\PaymentMethodConfig())->setEnabled(false))
+          ->addMethodConfig(
+            $paymentMethodClass,
+            $currentMethodConfig
+          );
+        if (!$order->getCustomer()->isAnonymous() && in_array($paymentMethodClass, ['card', 'sepaDirectDebit', 'paypal'])) {
+          $currentMethodConfig->setCredentialOnFile(true);
+          $paymentMethodsConfig->addMethodConfig(
+            $paymentMethodClass,
+            $currentMethodConfig
+          );
+        }
+
+        $risk = new \UnzerSDK\Resources\EmbeddedResources\RiskData();
+        $risk->setRegistrationLevel($order->getCustomer()->isAnonymous() ? '0' : '1');
+        if (!$order->getCustomer()->isAnonymous()) {
+          $user = Drupal\user\Entity\User::load($order->getCustomer()->id());
+          if ($user) {
+            $created_timestamp = $user->get('created')->value;
+            $registration_date = date('Y-m-d', $created_timestamp);
+            $risk->setRegistrationDate(
+              $registration_date
+            );
+            $query = \Drupal::entityQuery('commerce_order')
+              ->accessCheck(false)
+              ->condition('uid', $order->getCustomer()->id())
+              ->condition('state', 'completed');
+
+            $order_ids = $query->execute();
+            $completed_orders_count = count($order_ids);
+
+            $total_sum = 0;
+            if (!empty($order_ids)) {
+              $orders = \Drupal::entityTypeManager()->getStorage('commerce_order')->loadMultiple($order_ids);
+              foreach ($orders as $past_order) {
+                $total_price = $past_order->getTotalPrice();
+                if ($total_price) {
+                  $total_sum += $total_price->getNumber();
+                }
+              }
+            }
+            $risk->setConfirmedAmount($total_sum)
+              ->setConfirmedOrders($completed_orders_count);
+
+            if ($completed_orders_count > 3) {
+              $risk->setCustomerGroup('TOP');
+            } elseif ($completed_orders_count >= 1) {
+              $risk->setCustomerGroup('GOOD');
+            } else {
+              $risk->setCustomerGroup('NEUTRAL');
+            }
+
+          }
+        }
+
+        $paypage = new \UnzerSDK\Resources\V2\Paypage($order->getTotalPrice()->getNumber(), $order->getTotalPrice()->getCurrencyCode());
+        $paypage->setPaymentMethodsConfigs($paymentMethodsConfig);
+        $paypage->setResources($resources);
+        $paypage->setType("embedded");
+        $paypage->setMode($config->get('charge_mode'));
+
+        $redirectUrlDrupal = Url::fromRoute('commerce_unzerpayment.checkout', ['commerce_payment_gateway' => 'unzer_' . $order->payment_gateway->entity->getPluginConfiguration()['unzer_payment_type'], 'commerce_order' => $order->id()])->setAbsolute(true)->toString();
+
+        $paypage->setUrls(
+          (new \UnzerSDK\Resources\EmbeddedResources\Paypage\Urls())
+          ->setReturnSuccess($redirectUrlDrupal)
+          ->setReturnFailure($redirectUrlDrupal)
+          ->setReturnPending($redirectUrlDrupal)
+          ->setReturnCancel($redirectUrlDrupal)
+        );
+
+        try {
+          $unzer->createPaypage($paypage);
+        } catch (\Exception $exception) {
+          UnzerPaymentLogger::getInstance()->addLog('initPayPage Request', 1, $exception, ['paypage' => $paypage]);
+          $checkout_flow->redirectToStep('order_information');
+        }
+
+        $tempstore = \Drupal::service('tempstore.private')->get('commerce_unzerpayment');
+        $tempstore->set('paypage_id', $paypage->getId());
+        $tempstore->set(
+          'order_success_url_' . $order->id(),
+          Url::fromRoute('commerce_payment.checkout.return', [
+            'commerce_order' => $order->id(),
+            'step' => 'payment',
+          ], ['absolute' => TRUE])->toString()
+        );
+        $tempstore->set(
+          'order_cancel_url_' . $order->id(),
+          Url::fromRoute('commerce_payment.checkout.cancel', [
+            'commerce_order' => $order->id(),
+            'step' => 'payment',
+          ], ['absolute' => TRUE])->toString()
+        );
+
+        $form['#attributes']['unzer_pub_key'] = $config->get('public_key');
+        $form['#attributes']['unzer_paypage_id'] = $paypage->getId();
+      }
+    }
+  }
+}
+
+

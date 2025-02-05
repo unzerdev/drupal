@@ -1,0 +1,21 @@
+unzer-payment-checkout:
+  js:
+    https://static-v2.unzer.com/v2/ui-components/index.js:
+      type: external
+      minified: true
+      attributes:
+        type: module
+
+unzer-payment:
+  version: VERSION
+  css:
+    component:
+      css/commerce_unzerpayment.css: {}
+  js:
+    js/commerce_unzerpayment.unzerpayment.js: {}
+  dependencies:
+    - classy/messages
+    - core/jquery
+    - core/drupal
+    - core/jquery.once
+    - commerce_unzerpayment/unzer-payment-checkout

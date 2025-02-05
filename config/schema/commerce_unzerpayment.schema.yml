@@ -1,0 +1,20 @@
+commerce_payment.commerce_payment_gateway.plugin.unzerpayment:
+  type: commerce_payment_gateway_configuration
+  mapping:
+    payment_type:
+      type: string
+      label: 'Payment Type'
+      description: 'Must be the internal type name supplied by Unzer'
+
+commerce_unzerpayment.basic_settings:
+  type: config_object
+  mapping:
+    public_key:
+      type: string
+      label: 'Public Key'
+    private_key:
+      type: string
+      label: 'Private Key'
+    charge_mode:
+      type: string
+      label: 'Charge Mode'

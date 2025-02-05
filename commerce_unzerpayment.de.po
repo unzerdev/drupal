@@ -1,0 +1,144 @@
+# $Id$
+#
+# German translation of Drupal (general)
+# Copyright 2025 <info@unzer.com>
+# Generated from files:
+#  commerce_unzerpayment.info.yml: n/a
+#  commerce_unzerpayment.links.menu.yml: n/a
+#  commerce_unzerpayment.routing.yml: n/a
+#  config/schema/commerce_unzerpayment.schema.yml: n/a
+#  src/Form/BasicSettingsForm.php: n/a
+#  src/Plugin/Commerce/PaymentGateway/UnzerPayment.php: n/a
+#  src/Plugin/Commerce/PaymentMethodType/UnzerPayment.php: n/a
+#  templates/unzertransactions.html.twig: n/a
+#  templates/unzerwebhooks.html.twig: n/a
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0.0\n"
+"POT-Creation-Date: 2025-01-14 15:14+0100\n"
+"PO-Revision-Date: 2025-01-14 15:14+0100\n"
+"Last-Translator: NAME <info@unzer.com>\n"
+"Language-Team: German <info@unzer.com>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: commerce_unzerpayment.info.yml:0
+msgid "Unzer Payment Commerce integration"
+msgstr "Unzer Payment Commerce integration"
+
+#: commerce_unzerpayment.info.yml:0
+msgid "Integrates Unzer Payment methods into Drupal Commerce"
+msgstr "Integriert die Unzer Zahlungsmethoden in Drupal Commerce"
+
+#: commerce_unzerpayment.info.yml:0
+msgid "Custom"
+msgstr "Benutzerdefiniert"
+
+#: commerce_unzerpayment.links.menu.yml:0 commerce_unzerpayment.routing.yml:0
+msgid "Unzer Payment Settings"
+msgstr "Unzer Payment Einstellungen"
+
+#: config/schema/commerce_unzerpayment.schema.yml:0
+msgid "Payment Type"
+msgstr "Payment Typ"
+
+#: config/schema/commerce_unzerpayment.schema.yml:0 src/Form/BasicSettingsForm.php:42
+msgid "Public Key"
+msgstr "Public Key"
+
+#: config/schema/commerce_unzerpayment.schema.yml:0 src/Form/BasicSettingsForm.php:49
+msgid "Private Key"
+msgstr "Private Key"
+
+#: config/schema/commerce_unzerpayment.schema.yml:0 src/Form/BasicSettingsForm.php:57
+msgid "Charge Mode"
+msgstr "Einzugsmodus"
+
+#: src/Form/BasicSettingsForm.php:59
+msgid "charge"
+msgstr "charge"
+
+#: src/Form/BasicSettingsForm.php:60
+msgid "authorize"
+msgstr "authorize"
+
+#: src/Plugin/Commerce/PaymentGateway/UnzerPayment.php:238
+msgid "Unzer Payment Type"
+msgstr "Unzer Payment Type"
+
+#: src/Plugin/Commerce/PaymentGateway/UnzerPayment.php:239
+msgid "Must be the payment type string as supplied by Unzer"
+msgstr "Muss zwingend der payment-type-String sein, wie von Unzer übermittelt"
+
+#: src/Plugin/Commerce/PaymentGateway/UnzerPayment.php:21 src/Plugin/Commerce/PaymentMethodType/UnzerPayment.php:23;15
+msgid "Unzer Payment"
+msgstr "Unzer Payment"
+
+#: src/Plugin/Commerce/PaymentGateway/UnzerPayment.php:21
+msgid "Unzer"
+msgstr "Unzer"
+
+#: templates/unzertransactions.html.twig:7
+msgid "Total amount"
+msgstr "Gesamtbetrag"
+
+#: templates/unzertransactions.html.twig:15
+msgid "Charged amount"
+msgstr "Eingezogener Betrag"
+
+#: templates/unzertransactions.html.twig:23
+msgid "Cancelled amount"
+msgstr "Erstatteter Betrag"
+
+#: templates/unzertransactions.html.twig:31
+msgid "Remaining amount"
+msgstr "Verbleibender Betrag"
+
+#: templates/unzertransactions.html.twig:44
+msgid "Time"
+msgstr "Zeit"
+
+#: templates/unzertransactions.html.twig:47
+msgid "Type"
+msgstr "Typ"
+
+#: templates/unzertransactions.html.twig:50 templates/unzerwebhooks.html.twig:8
+msgid "ID"
+msgstr "ID"
+
+#: templates/unzertransactions.html.twig:53
+msgid "Amount"
+msgstr "Betrag"
+
+#: templates/unzertransactions.html.twig:56
+msgid "Status"
+msgstr "Status"
+
+#: templates/unzerwebhooks.html.twig:11
+msgid "Event"
+msgstr "Event"
+
+#: templates/unzerwebhooks.html.twig:14
+msgid "URL"
+msgstr "URL"
+
+#: templates/unzerwebhooks.html.twig:33
+msgid "Do you really want to delete this webhook?"
+msgstr "Soll der Webhook wirklich gelöscht werden?"
+
+#: templates/unzerwebhooks.html.twig:34
+msgid "delete"
+msgstr "löschen"
+
+#: templates/unzerwebhooks.html.twig:44
+msgid "Do you really want to register the webhook?"
+msgstr "Soll der Webhook wirklich registriert werden?"
+
+#: templates/unzerwebhooks.html.twig:45
+msgid "Register webhook"
+msgstr "Webhook registrieren"
+

@@ -1,0 +1,29 @@
+{
+    "name": "unzerdev/drupal",
+    "description": "Unzer Payment for Drupal Commerce",
+    "type": "drupal-module",
+    "version": "1.0.0",
+    "keywords": [
+        "payment",
+        "gateway"
+    ],
+    "license": "Apache-2.0",
+    "authors": [
+        {
+            "name": "Unzer GmbH",
+            "email": "support@unzer.com",
+            "homepage": "https://www.unzer.com/de/support/"
+        }
+    ],
+    "require": {
+        "php": ">=8.1",
+        "unzerdev/php-sdk": "~3.11.0",
+        "drupal/commerce": "^2.40 || ^3",
+        "psr/log":">=1.1.4"
+    },
+    "autoload": {
+        "psr-4": {
+            "Drupal\\commerce_unzerpayment\\": "src/"
+        }
+    }
+}

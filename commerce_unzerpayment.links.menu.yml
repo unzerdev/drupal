@@ -1,0 +1,4 @@
+commerce_unzerpayment.configuration:
+  title: 'Unzer Payment Settings'
+  route_name: 'commerce_unzerpayment.basic_settings'
+  parent: 'commerce_payment.configuration'

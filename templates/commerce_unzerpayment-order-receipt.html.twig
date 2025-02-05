@@ -1,0 +1,11 @@
+{% extends '@commerce/modules/order/templates/commerce-order-receipt.html.twig' %}
+
+{% block additional_information %}
+
+  {{ parent() }}
+
+  {% if unzer_instructions is defined %}
+    {{ unzer_instructions }}
+  {% endif %}
+
+{% endblock %}
