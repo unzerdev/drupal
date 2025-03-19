@@ -92,6 +92,9 @@ class UnzerPaymentClient extends \UnzerSDK\Unzer {
     }
     $className = join('', $newParts);
     if (class_exists("UnzerSDK\Resources\PaymentTypes\\" . $className)) {
+      if ($className == 'OpenbankingPis') {
+        return strtolower($className);
+      }
       return lcfirst($className);
     }
     return $paymentType;

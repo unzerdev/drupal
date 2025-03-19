@@ -32,6 +32,7 @@ class UnzerPaymentTranslator {
       'PAYLATER-INVOICE' => 'Rechnungskauf',
       'PAYLATER-INSTALLMENT' => 'Ratenkauf',
       'PAYLATER-DIRECT-DEBIT' => 'Lastschrift',
+      'OPENBANKING-PIS' => 'Direkt-Überweisung'
     ];
     if (isset($labels[strtoupper($paymentType)])) {
       return $labels[strtoupper($paymentType)];
